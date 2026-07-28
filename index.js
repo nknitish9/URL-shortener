@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('./db');
 const { encode } = require('./base62');
+const cache = require('./cache');
 
 const app = express();
 const PORT = 3000;
@@ -36,6 +37,14 @@ app.post('/shorten', (req, res) => {
 
 app.get('/:code', (req, res) => {
     const { code } = req.params;
+
+    const cachedUrl = cache.get(code);
+    if(cachedUrl) {
+        console.log('Cache HIT for', code);
+        return res.redirect(cachedUrl);
+    }
+
+    console.log('Cache MISS for', code);
     const row = db.prepare('SELECT * FROM urls WHERE short_code = ?').get(code);
 
     if(!row) {
@@ -43,6 +52,9 @@ app.get('/:code', (req, res) => {
     }
 
     db.prepare('UPDATE urls SET clicks = clicks + 1 WHERE id=?').run(row.id);
+
+    cache.set(code, row.original_url);
+
     res.redirect(row.original_url);
 });
 

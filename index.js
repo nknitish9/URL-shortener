@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('./db');
 const { encode } = require('./base62');
 const cache = require('./cache');
+const { isAllowed } = require('./rateLimiter');
 
 const app = express();
 const PORT = 3000;
@@ -13,6 +14,12 @@ app.get('/', (req, res) => {
 });
 
 app.post('/shorten', (req, res) => {
+    const ip = req.ip;
+    
+    if(!isAllowed(ip)){
+        return res.status(429).json({ error: 'Too many requests. Please try again later.'});
+    }
+    
     const { url } = req.body;
 
     if(!url) {
